@@ -42,7 +42,10 @@ pub fn read_varint<R: Read>(r: &mut R) -> io::Result<i32> {
 
         position += 7;
         if position >= 32 {
-            return Err(io::Error::new(io::ErrorKind::InvalidData, "VarInt troppo grande"));
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "VarInt troppo grande",
+            ));
         }
     }
 
@@ -79,7 +82,11 @@ impl NetworkRegistry {
     }
 
     /// Registra un ricevitore per un canale (es. "distanthorizons:data").
-    pub fn register_receiver<F: Fn(&[u8]) + Send + Sync + 'static>(&self, channel: &str, receiver: F) {
+    pub fn register_receiver<F: Fn(&[u8]) + Send + Sync + 'static>(
+        &self,
+        channel: &str,
+        receiver: F,
+    ) {
         let mut lock = self.receivers.lock().unwrap();
         lock.entry(channel.to_string())
             .or_default()
@@ -101,4 +108,3 @@ impl NetworkRegistry {
         }
     }
 }
-

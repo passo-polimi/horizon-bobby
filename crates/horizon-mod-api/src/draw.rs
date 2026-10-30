@@ -14,11 +14,36 @@ pub struct Color {
 }
 
 impl Color {
-    pub const WHITE: Self = Self { r: 255, g: 255, b: 255, a: 255 };
-    pub const BLACK: Self = Self { r: 0, g: 0, b: 0, a: 255 };
-    pub const RED: Self = Self { r: 255, g: 0, b: 0, a: 255 };
-    pub const GREEN: Self = Self { r: 0, g: 255, b: 0, a: 255 };
-    pub const BLUE: Self = Self { r: 0, g: 0, b: 255, a: 255 };
+    pub const WHITE: Self = Self {
+        r: 255,
+        g: 255,
+        b: 255,
+        a: 255,
+    };
+    pub const BLACK: Self = Self {
+        r: 0,
+        g: 0,
+        b: 0,
+        a: 255,
+    };
+    pub const RED: Self = Self {
+        r: 255,
+        g: 0,
+        b: 0,
+        a: 255,
+    };
+    pub const GREEN: Self = Self {
+        r: 0,
+        g: 255,
+        b: 0,
+        a: 255,
+    };
+    pub const BLUE: Self = Self {
+        r: 0,
+        g: 0,
+        b: 255,
+        a: 255,
+    };
 
     pub const fn rgba(r: u8, g: u8, b: u8, a: u8) -> Self {
         Self { r, g, b, a }
@@ -67,7 +92,12 @@ impl<'a> DrawContext<'a> {
         let max_y = (y1 + self.offset_y).max(y2 + self.offset_y);
 
         self.batch.quad(
-            [[min_x, min_y], [max_x, min_y], [max_x, max_y], [min_x, max_y]],
+            [
+                [min_x, min_y],
+                [max_x, min_y],
+                [max_x, max_y],
+                [min_x, max_y],
+            ],
             [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]],
             color.as_u32(),
         );
@@ -86,7 +116,8 @@ impl<'a> DrawContext<'a> {
     pub fn draw_text(&mut self, text: &str, x: f32, y: f32, color: Color) {
         if let Some(atlas) = self.atlas {
             let (pos_x, pos_y) = (x + self.offset_x, y + self.offset_y);
-            self.batch.text(atlas, text, pos_x, pos_y, color.as_u32(), true);
+            self.batch
+                .text(atlas, text, pos_x, pos_y, color.as_u32(), true);
         }
     }
 

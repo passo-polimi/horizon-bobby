@@ -35,3 +35,4 @@
 # Release-only compiled original exporter bundle.
 /work/
 /exporters/
+tools/porting/java_harness/bin/

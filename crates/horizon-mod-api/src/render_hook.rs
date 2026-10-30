@@ -31,11 +31,7 @@ pub trait LODRenderHook: Send + Sync + 'static {
 /// Hook per culling accelerato su GPU e comandi di disegno indiretto (Nvidium).
 pub trait GPUCullingHook: Send + Sync + 'static {
     /// Invocato all'inizio del frame prima del disegno per generare le liste di disegno indiretto.
-    fn prepare_culling(
-        &self,
-        encoder: &mut wgpu::CommandEncoder,
-        ctx: &RenderPassContext<'_>,
-    );
+    fn prepare_culling(&self, encoder: &mut wgpu::CommandEncoder, ctx: &RenderPassContext<'_>);
 
     /// Fornisce il buffer dei comandi indiretti per le draw call.
     fn indirect_buffer(&self) -> Option<&wgpu::Buffer>;
@@ -61,4 +57,3 @@ impl RenderHookRegistry {
         self.culling_hooks.push(Box::new(hook));
     }
 }
-

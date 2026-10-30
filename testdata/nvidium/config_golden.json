@@ -1,0 +1,7 @@
+{
+  "region_keep_distance": 32,
+  "async_occlusion_culling": true,
+  "translucent_sorting": true,
+  "max_draw_distance": 64,
+  "enable_hiz_culling": true
+}

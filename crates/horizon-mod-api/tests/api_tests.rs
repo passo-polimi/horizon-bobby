@@ -1,5 +1,8 @@
 use horizon_mod_api::prelude::*;
-use std::{io::Cursor, sync::atomic::{AtomicI32, Ordering}};
+use std::{
+    io::Cursor,
+    sync::atomic::{AtomicI32, Ordering},
+};
 
 #[test]
 fn test_block_pos_packing_and_relative() {
@@ -7,7 +10,10 @@ fn test_block_pos_packing_and_relative() {
     let packed = pos.as_long();
     let unpacked = BlockPos::from_long(packed);
 
-    assert_eq!(pos, unpacked, "Roundtrip di as_long / from_long deve preservare le coordinate");
+    assert_eq!(
+        pos, unpacked,
+        "Roundtrip di as_long / from_long deve preservare le coordinate"
+    );
 
     let north = pos.relative(Direction::North);
     assert_eq!(north, BlockPos::new(12345, -64, -67891));
@@ -68,7 +74,11 @@ fn test_event_bus_order_and_no_lock() {
         tick_count: 42,
     });
 
-    assert_eq!(*order.lock().unwrap(), vec![1, 2], "L'ordine di dispatch deve rispettare le priorità");
+    assert_eq!(
+        *order.lock().unwrap(),
+        vec![1, 2],
+        "L'ordine di dispatch deve rispettare le priorità"
+    );
 }
 
 #[test]
@@ -89,7 +99,11 @@ fn test_varint_golden_bytes() {
         let mut buf = Vec::new();
         let bytes_written = write_varint(&mut buf, val).unwrap();
         assert_eq!(bytes_written, expected_bytes.len());
-        assert_eq!(&buf[..], expected_bytes, "VarInt per {val} non corrisponde ai golden bytes di Minecraft");
+        assert_eq!(
+            &buf[..],
+            expected_bytes,
+            "VarInt per {val} non corrisponde ai golden bytes di Minecraft"
+        );
 
         let mut cursor = Cursor::new(&buf);
         let read_back = read_varint(&mut cursor).unwrap();
@@ -110,4 +124,3 @@ fn test_network_registry_dispatch() {
     net.dispatch("test:channel", &[1, 2, 3, 4, 5]);
     assert_eq!(counter.load(Ordering::SeqCst), 5);
 }
-

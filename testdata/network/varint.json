@@ -1,0 +1,16 @@
+{
+  "function": "network::varint",
+  "cases": [
+    {"value": 0, "bytes": [0]},
+    {"value": 1, "bytes": [1]},
+    {"value": 2, "bytes": [2]},
+    {"value": 127, "bytes": [127]},
+    {"value": 128, "bytes": [128, 1]},
+    {"value": 255, "bytes": [255, 1]},
+    {"value": 25565, "bytes": [221, 199, 1]},
+    {"value": 2097151, "bytes": [255, 255, 127]},
+    {"value": 2147483647, "bytes": [255, 255, 255, 255, 7]},
+    {"value": -1, "bytes": [255, 255, 255, 255, 15]},
+    {"value": -2147483648, "bytes": [128, 128, 128, 128, 8]}
+  ]
+}

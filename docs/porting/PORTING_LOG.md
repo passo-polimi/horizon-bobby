@@ -94,3 +94,40 @@
   - `cargo test -p horizon-mod-api --test api_tests`: 7 test passati su 7 (`test result: ok. 7 passed; 0 failed`).
   - `cargo clippy -p horizon-mod-api -p distant-horizons -p nvidium`: terminato con codice 0 (0 errori, 0 warning).
   - Criteri di accettazione di Fase 2 pienamente soddisfatti. Attività fermata in attesa di approvazione umana prima della Fase 3.
+
+---
+
+## [2026-10-30] Fase 3 — Harness di Verifica Java ↔ Rust e Gate CI
+- **Modello:** Antigravity Lead Agent (Google DeepMind)
+- **Task eseguiti:**
+  - `T3.1`: Differential testing delle funzioni pure. Modulo generatore Java JVM `tools/porting/java_harness/TestVectorGenerator.java` che esporta vettori golden in `testdata/<mod>/<fn>.json` per 5 funzioni pure dei piloti:
+    - Nvidium: `encode_position`, `compact_light`, `encode_texture` (64-bit compact chunk vertex format)
+    - Distant Horizons: `section_pos_encode` (packing a 64-bit coordinate 28-bit e detail level), `section_pos_convert` (conversione multi-livello con divisione euclidea e shifting)
+  - `T3.2`: Golden bytes per packet VarInt Minecraft e roundtrip JSON su configurazione Nvidium (`testdata/network/varint.json`, `testdata/nvidium/config_golden.json`).
+  - `T3.3`: Creazione del crate di verifica `crates/horizon-mod-harness` con suite di test differenziali in `tests/difftest.rs`. Include test di mutazione che verifica che l'harness fallisce se la logica Rust viene deliberatamente alterata.
+  - `T3.4`: Realizzazione degli script di gate CI unificati `tools/porting/verify.sh` e `tools/porting/verify.bat` che concatenano in sequenza: `cargo fmt --check`, `cargo clippy -D warnings`, test unitari API e test differenziali.
+- **File creati / modificati:**
+  - `tools/porting/java_harness/TestVectorGenerator.java`
+  - `testdata/nvidium/encode_position.json`
+  - `testdata/nvidium/compact_light.json`
+  - `testdata/nvidium/encode_texture.json`
+  - `testdata/nvidium/config_golden.json`
+  - `testdata/distant-horizons/section_pos_encode.json`
+  - `testdata/distant-horizons/section_pos_convert.json`
+  - `testdata/network/varint.json`
+  - `crates/horizon-mod-harness/Cargo.toml`
+  - `crates/horizon-mod-harness/src/lib.rs`
+  - `crates/horizon-mod-harness/tests/difftest.rs`
+  - `tools/porting/verify.sh`
+  - `tools/porting/verify.bat`
+  - `Cargo.toml` (aggiunto workspace member `crates/horizon-mod-harness`)
+  - `Cargo.lock`
+  - `.gitignore` (aggiunta esclusione artefatti JVM di harness)
+  - `docs/porting/PORTING_LOG.md`
+- **Esito verifiche:**
+  - `.\tools\porting\verify.bat`: terminato con codice 0 (`[SUCCESS] All checks and differential tests passed cleanly!`).
+  - `cargo test -p horizon-mod-harness --test difftest`: 8 test passati su 8.
+  - `cargo test -p horizon-mod-api --test api_tests`: 7 test passati su 7.
+  - `cargo clippy --all-targets -p horizon-mod-api -p distant-horizons -p nvidium -p horizon-mod-harness -- -D warnings`: 0 warning, 0 errori.
+  - `cargo fmt --check`: 0 discrepanze di formattazione.
+  - Criteri di accettazione di Fase 3 pienamente soddisfatti. Attività fermata in attesa di approvazione umana prima della Fase 4.

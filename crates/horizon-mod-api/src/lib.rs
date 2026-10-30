@@ -16,7 +16,6 @@ pub mod types;
 pub use wgpu;
 
 pub mod prelude {
-    pub use wgpu;
     pub use crate::config::{Config, ModConfig};
     pub use crate::draw::{Color, DrawContext};
     pub use crate::event::{
@@ -28,7 +27,7 @@ pub mod prelude {
         GPUCullingHook, LODRenderHook, RenderHookRegistry, RenderPassContext,
     };
     pub use crate::types::{BlockPos, ChunkPos, Direction, Identifier, TextComponent, Vec3};
+    pub use wgpu;
 }
 
 pub use prelude::*;
-

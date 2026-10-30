@@ -74,4 +74,3 @@ impl<T: Config> ModConfig<T> {
         Ok(())
     }
 }
-

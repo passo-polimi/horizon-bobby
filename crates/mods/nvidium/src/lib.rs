@@ -32,7 +32,9 @@ pub mod hiz {
 
     // PORT: OcclusionCuller#testOcclusion(BoundingBox)
     pub fn test_hiz_occlusion(bbox: [f32; 6]) -> bool {
-        todo!("PORT: OcclusionCuller#testOcclusion - campionamento livello mip su piramide di profondità")
+        todo!(
+            "PORT: OcclusionCuller#testOcclusion - campionamento livello mip su piramide di profondità"
+        )
     }
 }
 
@@ -70,11 +72,7 @@ pub mod pipeline {
 
     impl GPUCullingHook for NvidiumHook {
         // PORT: RenderPipeline#prepareCulling(CommandEncoder)
-        fn prepare_culling(
-            &self,
-            encoder: &mut wgpu::CommandEncoder,
-            ctx: &RenderPassContext<'_>,
-        ) {
+        fn prepare_culling(&self, encoder: &mut wgpu::CommandEncoder, ctx: &RenderPassContext<'_>) {
             todo!("PORT: RenderPipeline#prepareCulling - compute pass per culling ed emissione MDI")
         }
 
@@ -84,4 +82,3 @@ pub mod pipeline {
         }
     }
 }
-

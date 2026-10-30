@@ -142,7 +142,11 @@ pub struct Vec3 {
 }
 
 impl Vec3 {
-    pub const ZERO: Self = Self { x: 0.0, y: 0.0, z: 0.0 };
+    pub const ZERO: Self = Self {
+        x: 0.0,
+        y: 0.0,
+        z: 0.0,
+    };
 
     // PORT: Vec3#<init>(double, double, double)
     #[inline]
@@ -280,4 +284,3 @@ impl TextComponent {
         }
     }
 }
-
