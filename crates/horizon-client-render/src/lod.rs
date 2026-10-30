@@ -413,7 +413,7 @@ impl Plan {
         self.nodes.insert(key);
         // Keep distant cells small on screen; finest tiles retain individual
         // blocks. Reduced keeps them twice as large (a quarter of the cells).
-        let split = if previous.split.contains(&key) { 10 } else { 8 };
+        let split = if previous.split.contains(&key) { 20 } else { 16 };
         let threshold = key.size() * if reduced { split / 2 } else { split };
         if key.level > 0
             && (key.distance(camera) < detail * 16 + 16
