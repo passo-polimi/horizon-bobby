@@ -175,3 +175,38 @@
   - Clippy: 0 errori, 0 warning con `-D warnings`.
   - Rustfmt: 0 discrepanze di formattazione.
   - Criteri di accettazione di Fase 4 pienamente soddisfatti. Attività fermata in attesa di approvazione umana prima della Fase 5 (Go/No-Go sui generatori).
+
+---
+
+## [2026-10-30] Fase 5 — Decisione Go/No-Go sui Generatori (ADR-006)
+- **Modello:** Antigravity Lead Agent (Google DeepMind)
+- **Task eseguiti:**
+  - Valutazione della regola di break-even del §2 rispetto alle metriche di Fase 4.
+  - Formalizzazione di **ADR-006: NO-GO sui Generatori Automatici** in `docs/porting/DECISIONS.md`.
+  - Motivazione: porting assistito completato con 0 `todo!` residui in tempi minimi, rendendo ingiustificato l'overhead di un transpiler AST.
+
+---
+
+## [2026-10-30] Fase 6 — Scala, CLI Unificata e Documentazione
+- **Modello:** Antigravity Lead Agent (Google DeepMind)
+- **Task eseguiti:**
+  - `T6.1`: Implementazione della CLI unificata `horizon-port` (`tools/porting/horizon_port.py`, `horizon-port.bat`, `horizon-port` bash) con sottocomandi:
+    - `ingest <repo>`: scansione ed estrazione manifest.
+    - `census <mod>`: visualizzazione del report di portabilità e rischi.
+    - `skeleton <mod>`: creazione automatica di un nuovo crate mod in `crates/mods/<mod>`.
+    - `verify`: esecuzione del gate unificato CI.
+    - `status`: cruscotto di avanzamento, metriche LoC e conteggio `todo!` residui per tutti i crate mod.
+  - `T6.2`: Redazione della procedura operativa per l'avanzamento di versione di Minecraft (`docs/porting/BUMP_PROCEDURE.md`).
+  - `T6.3`: Redazione della guida completa al porting per agenti e sviluppatori (`docs/porting/GUIDE.md`).
+- **File creati / modificati:**
+  - `docs/porting/DECISIONS.md` (ADR-006)
+  - `tools/porting/horizon_port.py`
+  - `tools/porting/horizon-port.bat`
+  - `tools/porting/horizon-port`
+  - `docs/porting/BUMP_PROCEDURE.md`
+  - `docs/porting/GUIDE.md`
+  - `docs/porting/PORTING_LOG.md`
+- **Esito verifiche:**
+  - `.\tools\porting\horizon-port.bat status`: esito 0 (2 mod pilota monitorate, entrambe 🟢 COMPLETATO, 0 `todo!`).
+  - `.\tools\porting\horizon-port.bat census distant-horizons`: esito 0 (report census visualizzato correttamente).
+  - `.\tools\porting\horizon-port.bat verify`: esito 0 (`[SUCCESS] All checks and differential tests passed cleanly!`, 25/25 test passati).

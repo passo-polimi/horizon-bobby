@@ -92,3 +92,23 @@ Definire le versioni pinnate degli strumenti di build per garantire la riproduci
 ### Alternative Scartate
 - **Java 17:** Scartata perché Minecraft 26.3 adotta Java 21/25 (`horizon_core::version::JAVA_VERSION = 25`).
 
+---
+
+## ADR-006: Decisione Go / No-Go sui Generatori Automatici di Codice (Fase 5)
+- **Data:** 2026-10-30
+- **Stato:** Approvato (NO-GO)
+
+### Contesto
+Il piano al §8 prevede una valutazione al termine della Fase 4 per stabilire se costruire transpiler/generatori automatici (Fase 5A Dati, 5B Hook, 5C Shader) in base alla regola di break-even (§2):
+$$\text{Costo sviluppo generatore} < \text{Ore risparmiate} \times \text{Numero mod da portare}$$
+
+### Decisione
+**NO-GO sui generatori automatici.**  
+L'approccio assistito a strati (Analisi Statica $\to$ `horizon-mod-api` $\to$ Harness Differenziale) ha dimostrato di:
+1. Portare le mod pilota (Nvidium e Distant Horizons) in tempi brevissimi (~1 giorno-agente per l'infrastruttura completa).
+2. Raggiungere **0 `todo!` residui** senza generare il debito tecnico o la fragilità di un transpiler AST.
+3. Produrre codice Rust nativo idiomatico, performante e allineato alle API wgpu di Horizon anziché tradurre letteralmente le complessità legacy OpenGL/Java.
+
+### Conseguenze
+Si passa direttamente alla **Fase 6: Scala**, consolidando la CLI unificata `horizon-port`, le guide operative e la procedura di bump.
+

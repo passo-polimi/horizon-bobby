@@ -40,3 +40,4 @@ Tutti i test di unità in [`crates/mods/nvidium/tests/nvidium_tests.rs`](../../c
 - `test_nvidium_compact_light_difftest ... ok`
 - `test_nvidium_encode_texture_difftest ... ok`
 - `test_nvidium_config_golden_roundtrip ... ok`
+
