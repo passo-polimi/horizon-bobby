@@ -143,6 +143,7 @@ pub(super) struct Remote {
     /// the first teleport, which takes them then.
     abilities: Option<play::PlayerAbilities>,
     loaded_sent: bool,
+    pub(super) warmup_until: Option<Instant>,
     /// The ClientInformation last sent (`Options.broadcastOptions` sends it
     /// again when a view distance, Chat, skin or Main Hand option changes).
     sent_info: horizon_protocol::packets::configuration::ClientInformation,
@@ -512,6 +513,7 @@ impl Game<'_> {
             carried: None,
             abilities: None,
             loaded_sent: false,
+            warmup_until: None,
             sent_info: self.settings.client_information(view),
             predictions: HashMap::new(),
             menu: None,
@@ -3789,6 +3791,9 @@ impl Game<'_> {
                 player.spectator = self.spectator();
                 player.velocity = delta;
                 self.player = Some(player);
+                if let Some(r) = self.remote.as_mut() {
+                    r.warmup_until = Some(Instant::now() + Duration::from_millis(3500));
+                }
                 self.pad.player_replaced();
                 self.sway = Default::default();
                 self.eye = 1.62;
@@ -6408,12 +6413,13 @@ impl Game<'_> {
     /// Connecting / loading screens; true when it covered the frame.
     pub(super) fn remote_overlay(&self, batch: &mut HudBatch) -> bool {
         let Some(r) = &self.remote else { return false };
-        if self.player.is_some() {
+        let warming = r.warmup_until.is_some_and(|until| Instant::now() < until);
+        if self.player.is_some() && !warming {
             return false;
         }
         let atlas = &self.gui.atlas;
         let (w, h) = (batch.width, batch.height);
-        if r.joined {
+        if r.joined || warming {
             // LevelLoadingScreen: the world's terrain comes in.
             horizon_client::ui::menu_background(batch, atlas, 0.0, 0.0, w, h, false);
             horizon_client::level_loading::draw(batch, atlas, None, None);
@@ -6427,7 +6433,9 @@ impl Game<'_> {
     /// Connected or connecting with no player yet: `ConnectScreen`, then
     /// `LevelLoadingScreen`, over the panorama with its blur.
     pub(super) fn remote_loading(&self) -> bool {
-        self.remote.is_some() && self.player.is_none()
+        self.remote.as_ref().is_some_and(|r| {
+            self.player.is_none() || r.warmup_until.is_some_and(|until| Instant::now() < until)
+        })
     }
     /// `ConnectScreen`'s Cancel: a server's (single player's server isn't
     /// joined through `ConnectScreen`), until the login is done.

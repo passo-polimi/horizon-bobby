@@ -12954,6 +12954,7 @@ impl Game<'_> {
             log::warn!("Horizon: failed to save unloaded chunks: {e}");
         }
         let (far_distance, far_reduced) = self.far_terrain_choice();
+        let is_remote_loading = self.remote_loading();
         if let Some(renderer) = self.renderer.as_mut() {
             let g = &self.settings.horizon;
             let budgeted = g.chunk_updates > 0 || g.upload_budget_kib > 0;
@@ -13051,7 +13052,9 @@ impl Game<'_> {
                 // A finished job can hold hundreds of tiles: spread them
                 // over frames rather than stall one.
                 horizon_client::spans::time("lod_upload", || {
-                    let budget = if renderer.has_pending_lods() {
+                    let budget = if is_remote_loading {
+                        std::time::Duration::from_millis(16)
+                    } else if renderer.has_pending_lods() {
                         std::time::Duration::from_millis(6)
                     } else {
                         std::time::Duration::from_millis(2)
