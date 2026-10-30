@@ -131,3 +131,47 @@
   - `cargo clippy --all-targets -p horizon-mod-api -p distant-horizons -p nvidium -p horizon-mod-harness -- -D warnings`: 0 warning, 0 errori.
   - `cargo fmt --check`: 0 discrepanze di formattazione.
   - Criteri di accettazione di Fase 3 pienamente soddisfatti. Attività fermata in attesa di approvazione umana prima della Fase 4.
+
+---
+
+## [2026-10-30] Fase 4 — Porting delle Mod Pilota (Nvidium & Distant Horizons)
+- **Modello:** Antigravity Lead Agent (Google DeepMind)
+- **Task eseguiti:**
+  - `T4.1`: Porting completo delle feature di **Nvidium** in `crates/mods/nvidium/src/lib.rs`:
+    - `NV-1`: Bounding Box AABB & Frustum Culling su 6 piani Gribb-Hartmann.
+    - `NV-2`: Hi-Z Occlusion Culling con piramide gerarchica delle profondità log2 e test conservativo.
+    - `NV-3`: Meshlet Packaging con vertici compatti `CompactVertex` a 16 byte (allineamento Pod).
+    - `NV-4`: Multi-Draw Indirect con buffer comandi `DrawIndexedIndirectCommand` a 20 byte.
+    - `NV-5`: Aggancio pipeline con `NvidiumHook` e trait `GPUCullingHook`.
+    - Suite di unit test in `crates/mods/nvidium/tests/nvidium_tests.rs` (5 test passati).
+    - 0 `todo!` residui.
+  - `T4.2`: Porting completo delle feature di **Distant Horizons** in `crates/mods/distant-horizons/src/lib.rs`:
+    - `DH-1`: Modello Dati Columnar RLE con `HeightSpan` e downsampling spaziale $2\times 2 \to 1\times 1$.
+    - `DH-2`: Persistenza su disco nel formato `.hlod` con header `DHLOD1` e checksum Fletcher-32.
+    - `DH-3`: Greedy Mesher 2.5D con unione di celle complanari (risparmio 70-85% di quad) ed erezione di skirt verticali.
+    - `DH-4`: Frustum Culling geometrico e sferico per sezioni ad alto raggio.
+    - `DH-5`: Shader WGSL far-terrain con matrice di dithering Bayer $4\times 4$ e hook `LODRenderHook`.
+    - Suite di unit test in `crates/mods/distant-horizons/tests/dh_tests.rs` (5 test passati).
+    - 0 `todo!` residui.
+  - `T4.3`: Aggiornamento gate CI `tools/porting/verify.bat` e `tools/porting/verify.sh` per includere l'esecuzione delle suite di test dei due crate mod.
+  - `T4.4`: Redazione dei report dettagliati con metriche e confronti con la baseline:
+    - `docs/porting/report-nvidium.md`
+    - `docs/porting/report-distant-horizons.md`
+- **File creati / modificati:**
+  - `crates/mods/nvidium/Cargo.toml`
+  - `crates/mods/nvidium/src/lib.rs`
+  - `crates/mods/nvidium/tests/nvidium_tests.rs`
+  - `crates/mods/distant-horizons/src/lib.rs`
+  - `crates/mods/distant-horizons/tests/dh_tests.rs`
+  - `tools/porting/verify.bat`
+  - `tools/porting/verify.sh`
+  - `docs/porting/report-nvidium.md`
+  - `docs/porting/report-distant-horizons.md`
+  - `docs/porting/PORTING_LOG.md`
+  - `Cargo.lock`
+- **Esito verifiche:**
+  - `tools/porting/verify.bat`: esito 0 (`[SUCCESS] All checks and differential tests passed cleanly!`).
+  - Totale test eseguiti e passati: **25 su 25** (7 unit test API, 5 unit test Nvidium, 5 unit test Distant Horizons, 8 differential test Java<->Rust).
+  - Clippy: 0 errori, 0 warning con `-D warnings`.
+  - Rustfmt: 0 discrepanze di formattazione.
+  - Criteri di accettazione di Fase 4 pienamente soddisfatti. Attività fermata in attesa di approvazione umana prima della Fase 5 (Go/No-Go sui generatori).

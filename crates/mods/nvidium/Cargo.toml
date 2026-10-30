@@ -8,5 +8,6 @@ description = "Porting nativo di Nvidium GPU-Driven Rendering per Horizon (Rust)
 
 [dependencies]
 horizon-mod-api = { path = "../../horizon-mod-api" }
+bytemuck = { version = "1.25", features = ["derive"] }
 log = "0.4"
 

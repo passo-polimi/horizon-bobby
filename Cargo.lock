@@ -2430,6 +2430,7 @@ dependencies = [
 name = "nvidium"
 version = "0.1.0"
 dependencies = [
+ "bytemuck",
  "horizon-mod-api",
  "log",
 ]

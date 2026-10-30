@@ -17,9 +17,11 @@ cargo fmt --check --package horizon-mod-api --package distant-horizons --package
 echo "[2/4] Running Clippy with warnings denied..."
 cargo clippy --all-targets -p horizon-mod-api -p distant-horizons -p nvidium -p horizon-mod-harness -- -D warnings
 
-# 3. Test di unità API
-echo "[3/4] Running API unit tests..."
+# 3. Test di unità API e suite mod pilota
+echo "[3/4] Running API and mod unit test suites..."
 cargo test -p horizon-mod-api --test api_tests
+cargo test -p nvidium --test nvidium_tests
+cargo test -p distant-horizons --test dh_tests
 
 # 4. Suite di testing differenziale Java <-> Rust
 echo "[4/4] Running Java <-> Rust differential tests (difftest)..."

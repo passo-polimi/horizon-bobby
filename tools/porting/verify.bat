@@ -22,10 +22,20 @@ if %errorlevel% neq 0 (
     exit /b %errorlevel%
 )
 
-echo [3/4] Running API unit tests...
+echo [3/4] Running API unit tests and mod test suites...
 cargo test -p horizon-mod-api --test api_tests
 if %errorlevel% neq 0 (
     echo [FAILURE] API unit tests failed!
+    exit /b %errorlevel%
+)
+cargo test -p nvidium --test nvidium_tests
+if %errorlevel% neq 0 (
+    echo [FAILURE] Nvidium unit tests failed!
+    exit /b %errorlevel%
+)
+cargo test -p distant-horizons --test dh_tests
+if %errorlevel% neq 0 (
+    echo [FAILURE] Distant Horizons unit tests failed!
     exit /b %errorlevel%
 )
 
