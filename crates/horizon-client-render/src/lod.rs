@@ -20,7 +20,7 @@ use std::{
 };
 
 const CELLS: usize = 16;
-const MAX_SAVED: usize = 1024;
+const MAX_SAVED: usize = 16384;
 /// How many resident chunks may wait for the worker's summary at once
 /// (`Lod::observing`).
 pub const OBSERVE_AHEAD: usize = 8;
@@ -31,6 +31,8 @@ const SAMPLE_JOBS: usize = 4;
 fn sampling_threads(cores: usize) -> usize {
     if cores >= 12 {
         (cores / 2).min(6)
+    } else if cores >= 6 {
+        3
     } else {
         (cores / 4).clamp(1, 3)
     }
@@ -1067,7 +1069,7 @@ impl Lod {
     fn request_detail(&mut self, camera: [i32; 2]) {
         if self.held()
             || self.detail_request_pending
-            || self.detail_request_at.elapsed() < std::time::Duration::from_millis(250)
+            || self.detail_request_at.elapsed() < std::time::Duration::from_millis(80)
         {
             return;
         }
@@ -1103,7 +1105,7 @@ impl Lod {
                     }
                 }
             }
-            if chunks.len() >= 32 {
+            if chunks.len() >= 64 {
                 break;
             }
         }
@@ -1113,7 +1115,7 @@ impl Lod {
             let dz = i64::from(z * 16 + 8 - camera[1]);
             dx * dx + dz * dz
         });
-        chunks.truncate(32);
+        chunks.truncate(64);
         if !chunks.is_empty() {
             self.detail_request_pending = true;
             self.shared
@@ -2275,7 +2277,7 @@ mod tests {
 
     #[test]
     fn extra_sampling_threads_only_on_large_machines() {
-        assert_eq!([1, 2, 4, 8, 11].map(sampling_threads), [1, 1, 1, 2, 2]);
+        assert_eq!([1, 2, 4, 8, 11].map(sampling_threads), [1, 1, 1, 3, 3]);
         assert_eq!([12, 16, 64].map(sampling_threads), [6, 6, 6]);
     }
 }

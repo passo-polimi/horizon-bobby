@@ -13051,7 +13051,12 @@ impl Game<'_> {
                 // A finished job can hold hundreds of tiles: spread them
                 // over frames rather than stall one.
                 horizon_client::spans::time("lod_upload", || {
-                    renderer.upload_lods(std::time::Duration::from_millis(2))
+                    let budget = if renderer.has_pending_lods() {
+                        std::time::Duration::from_millis(6)
+                    } else {
+                        std::time::Duration::from_millis(2)
+                    };
+                    renderer.upload_lods(budget)
                 });
             }
         }

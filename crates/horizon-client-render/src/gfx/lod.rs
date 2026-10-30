@@ -161,6 +161,10 @@ impl Renderer {
 
     /// Uploads queued tile meshes for about `budget` (at least one), then,
     /// once all are in, retires the tiles they replace.
+    pub fn has_pending_lods(&self) -> bool {
+        self.lod_pending.as_ref().is_some_and(|p| !p.meshes.is_empty())
+    }
+
     pub fn upload_lods(&mut self, budget: Duration) {
         let start = Instant::now();
         while let Some(pending) = &mut self.lod_pending {

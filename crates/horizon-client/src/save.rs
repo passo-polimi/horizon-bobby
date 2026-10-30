@@ -1954,8 +1954,8 @@ struct LodDecoded {
 }
 /// Saved chunks kept decoded for far terrain (each tens of kilobytes), and
 /// for how long: edits saved later show after it.
-const LOD_DECODED: usize = 1024;
-const LOD_DECODED_TTL: std::time::Duration = std::time::Duration::from_secs(30);
+const LOD_DECODED: usize = 16384;
+const LOD_DECODED_TTL: std::time::Duration = std::time::Duration::from_secs(3600);
 /// A region file's saved chunks (bit `x + z * 32`), `None` without the file,
 /// as of `checked`.
 struct LodRegion {
@@ -3660,7 +3660,7 @@ impl<G: ChunkGenerator> SavedLodSampler<G> {
         };
         let columns = cached.1.clone();
         self.cache.push_front(cached);
-        self.cache.truncate(128);
+        self.cache.truncate(2048);
         columns
     }
 }
