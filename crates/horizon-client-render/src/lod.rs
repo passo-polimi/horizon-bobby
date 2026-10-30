@@ -285,7 +285,9 @@ fn state_kinds(facts: &BlockFacts) -> Vec<u8> {
                         | "minecraft:end_rod"
                         | "minecraft:lightning_rod"
                         | "minecraft:copper_grate"
-                );
+                        | "minecraft:shroomlight"
+                )
+                || f.name.ends_with("_froglight");
             let kept = !facts.is_air(state)
                 && (f.solid_render
                     || f.full_collision

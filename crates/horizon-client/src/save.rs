@@ -3880,10 +3880,34 @@ fn decode_lod_surfaces(
                             descriptor.name.as_str(),
                             "minecraft:chorus_plant" | "minecraft:chorus_flower"
                         );
+                        let name = descriptor.name.as_str();
+                        let architectural = name.ends_with("_stairs")
+                            || name.ends_with("_slab")
+                            || name.ends_with("_wall")
+                            || name.ends_with("_fence")
+                            || name.ends_with("_fence_gate")
+                            || name.ends_with("_trapdoor")
+                            || name.ends_with("_door")
+                            || name.ends_with("_pane")
+                            || name.contains("glass")
+                            || matches!(
+                                name,
+                                "minecraft:iron_bars"
+                                    | "minecraft:chain"
+                                    | "minecraft:lantern"
+                                    | "minecraft:soul_lantern"
+                                    | "minecraft:scaffolding"
+                                    | "minecraft:ladder"
+                                    | "minecraft:end_rod"
+                                    | "minecraft:lightning_rod"
+                                    | "minecraft:copper_grate"
+                                    | "minecraft:shroomlight"
+                            )
+                            || name.ends_with("_froglight");
                         (
                             state,
                             fluid,
-                            fluid || properties.blocks_motion_in_heightmap() || chorus,
+                            fluid || properties.blocks_motion_in_heightmap() || chorus || architectural,
                         )
                     }))
                 })

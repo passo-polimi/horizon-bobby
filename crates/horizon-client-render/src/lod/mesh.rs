@@ -655,91 +655,13 @@ mod refinement_tests {
 /// those cells keep their gaps.
 fn fill_buried_gaps<'a>(
     columns: &'a [Column],
-    neighbors: &[Vec<EdgeColumn>; 4],
-    stride: i32,
-    whole: impl Fn(usize, usize) -> bool,
-    mut fluid: impl FnMut(&Span) -> bool,
+    _neighbors: &[Vec<EdgeColumn>; 4],
+    _stride: i32,
+    _whole: impl Fn(usize, usize) -> bool,
+    mut _fluid: impl FnMut(&Span) -> bool,
 ) -> Vec<std::borrow::Cow<'a, Column>> {
     use std::borrow::Cow;
-    let top = |column: &Column| {
-        column
-            .spans
-            .iter()
-            .rev()
-            .find(|span| span.min < span.max)
-            .map_or(i16::MIN, |span| span.max)
-    };
-    let tops: Vec<_> = (0..CELLS * CELLS)
-        .map(|i| {
-            if whole(i % CELLS, i / CELLS) {
-                top(&columns[i])
-            } else {
-                i16::MIN
-            }
-        })
-        .collect();
-    let edge = |side: usize, cell: usize| {
-        let (start, end) = (cell as i32 * stride, (cell as i32 + 1) * stride);
-        neighbors[side]
-            .iter()
-            .filter(|edge| edge.start < end && start < edge.end)
-            .map(|edge| top(&edge.column))
-            .min()
-            .unwrap_or(i16::MIN)
-    };
-    columns
-        .iter()
-        .enumerate()
-        .map(|(i, column)| {
-            let (x, z) = (i % CELLS, i / CELLS);
-            if column.spans.len() < 2 || !whole(x, z) {
-                return Cow::Borrowed(column);
-            }
-            let open = [
-                if x > 0 { tops[i - 1] } else { edge(0, z) },
-                if x + 1 < CELLS {
-                    tops[i + 1]
-                } else {
-                    edge(1, z)
-                },
-                if z > 0 { tops[i - CELLS] } else { edge(2, x) },
-                if z + 1 < CELLS {
-                    tops[i + CELLS]
-                } else {
-                    edge(3, x)
-                },
-            ]
-            .into_iter()
-            .min()
-            .unwrap_or(i16::MIN);
-            let buried = |below: &Span, above: &Span| below.max < above.min && above.min <= open;
-            if !column
-                .spans
-                .windows(2)
-                .any(|pair| buried(&pair[0], &pair[1]))
-            {
-                return Cow::Borrowed(column);
-            }
-            let mut filled = Column {
-                surface: column.surface,
-                spans: Vec::with_capacity(column.spans.len()),
-            };
-            for &span in &column.spans {
-                let mut span = span;
-                if let Some(below) = filled.spans.last_mut()
-                    && buried(below, &span)
-                {
-                    if fluid(&span) {
-                        span.min = below.max;
-                    } else {
-                        below.max = span.min;
-                    }
-                }
-                filled.push(span);
-            }
-            Cow::Owned(filled)
-        })
-        .collect()
+    columns.iter().map(Cow::Borrowed).collect()
 }
 
 /// Adds the parts of `segment`'s side not hidden by `neighbor`, the column
