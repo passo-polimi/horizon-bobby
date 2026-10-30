@@ -265,12 +265,34 @@ fn state_kinds(facts: &BlockFacts) -> Vec<u8> {
                 &*f.name,
                 "minecraft:chorus_plant" | "minecraft:chorus_flower"
             );
+            let architectural = f.name.ends_with("_stairs")
+                || f.name.ends_with("_slab")
+                || f.name.ends_with("_wall")
+                || f.name.ends_with("_fence")
+                || f.name.ends_with("_fence_gate")
+                || f.name.ends_with("_trapdoor")
+                || f.name.ends_with("_door")
+                || f.name.ends_with("_pane")
+                || f.name.contains("glass")
+                || matches!(
+                    &*f.name,
+                    "minecraft:iron_bars"
+                        | "minecraft:chain"
+                        | "minecraft:lantern"
+                        | "minecraft:soul_lantern"
+                        | "minecraft:scaffolding"
+                        | "minecraft:ladder"
+                        | "minecraft:end_rod"
+                        | "minecraft:lightning_rod"
+                        | "minecraft:copper_grate"
+                );
             let kept = !facts.is_air(state)
                 && (f.solid_render
                     || f.full_collision
                     || f.name.ends_with("_leaves")
                     || chorus
-                    || fluid);
+                    || fluid
+                    || architectural);
             (u8::from(kept) * KEPT)
                 | (u8::from(fluid) * FLUID)
                 | (u8::from(state == facts.air) * AIR)
