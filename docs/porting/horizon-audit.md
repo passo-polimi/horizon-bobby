@@ -153,3 +153,4 @@ Horizon supporta nativamente due percorsi di modding:
 | **Config & Persistenza** | Parziale | `options_file.rs`, `native_hooks.rs` | File vanilla presenti; serve astrazione serde standard per le opzioni delle mod. |
 | **Input / Keybinds** | Parziale | `keybinds.rs`, `native_hooks.rs` | Tasti vanilla presenti; manca registrazione dinamica di nuovi keybind in UI. |
 | **Native Mod Hooks** | Esiste | `horizon-client/src/game/native_hooks.rs` | API v2 con hook minimap e pannelli; espandibile per i nuovi hook del porting. |
+

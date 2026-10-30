@@ -91,3 +91,4 @@ Definire le versioni pinnate degli strumenti di build per garantire la riproduci
 
 ### Alternative Scartate
 - **Java 17:** Scartata perché Minecraft 26.3 adotta Java 21/25 (`horizon_core::version::JAVA_VERSION = 25`).
+

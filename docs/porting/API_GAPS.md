@@ -27,3 +27,4 @@
 - **Descrizione:** I tasti rapidi sono definiti in un enum/struct statico per le sole funzioni vanilla. Una mod non può registrare dinamicamente un tasto visibile nella schermata Opzioni > Controlli.
 - **Mod interessate:** Tutte le mod QoL, Distant Horizons (tasti per aprire menu di configurazione LOD).
 - **Risoluzione proposta:** Aggiungere un registro `ModKeybinds` con callback al press/release.
+

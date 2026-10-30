@@ -1,6 +1,6 @@
 # Policy sulle Licenze per il Porting di Mod Java in Horizon
 
-*Generato in Fase 0 (Task T0.3) · Data: 2026-10-30*  
+*Generato in Fase 0 (Task T0.3) · Aggiornato: 2026-10-30*  
 *Attenzione: questo documento costituisce un'analisi tecnica di conformità e non un parere legale formale.*
 
 ---
@@ -31,7 +31,7 @@ Ogni mod candidata al porting viene categorizzata in uno di tre livelli di idone
 
 ---
 
-## 3. Classificazione delle Mod Pilota Scelte
+## 3. Classificazione delle Mod Pilota Scelte (Opzione A)
 
 ### Mod 1: Distant Horizons
 - **Repository di riferimento:** `https://gitlab.com/distant-horizons-team/distant-horizons` (GitLab ufficiale)
@@ -44,17 +44,12 @@ Ogni mod candidata al porting viene categorizzata in uno di tre livelli di idone
 
 ---
 
-### Mod 2: Voxy
-- **Repository di riferimento:** `https://github.com/MCRcortex/voxy`
-- **Licenza letta da `LICENSE.md` nel repository:**
-  ```text
-  Copyright 2025 MCRcortex. All rights reserved. Do not redistribute.
-  
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND...
-  ```
-- **Classificazione:** 🔴 **BLOCCATA (All Rights Reserved / Proprietary Source-Available)**.
+### Mod 2: Nvidium (Sostituto Open Source di Voxy)
+- **Autore:** MCRcortex (autore originale di Voxy e Nvidium)
+- **Repository di riferimento:** `https://github.com/MCRcortex/nvidium`
+- **Licenza letta dal repository:** **GNU Lesser General Public License v3.0 (LGPL-3.0-only)**.
+- **Classificazione:** 🟢 **PORTABILE (CON VINCOLO COPYLEFT LGPL-3.0)**.
 - **Implicazioni legali ed architetturali per Horizon:**
-  1. **Divieto di Porting Diretto:** È severamente vietato inserire il file JAR o il codice sorgente Java di Voxy nella pipeline di ingestione (`tools/porting/ingest`), deoffuscarlo o decompilarlo per tradurne le classi in Rust.
-  2. **Eccezione Clean-Room Implementation:**  
-     La normativa sul copyright tutela la specifica forma espressiva del codice sorgente, non i concetti matematici e algoritmici generali (come l'uso di un Sparse Voxel Octree a 32-bit, l'occlusion culling tramite Hierarchical Z-Buffer o le chiamate Vulkan/wgpu Multi-Draw Indirect).  
-     Qualora si intenda realizzare un motore voxel simile a Voxy, esso deve essere sviluppato come **opera autonoma e pulita (Clean-Room)**, scrivendo codice Rust originale senza copiare file o metodi proprietari di MCRcortex.
+  1. Piena idoneità legale per l'ingestione nel pipeline `tools/porting/ingest`, rimappatura e analisi statica con ASM/Vineflower.
+  2. Il crate risultante (`crates/mods/nvidium`) indicherà `license = "LGPL-3.0-only"` nel proprio `Cargo.toml`.
+  3. Risolve totalmente il blocco giuridico di Voxy (che era All Rights Reserved), mantenendo al 100% l'architettura di rendering GPU-driven, occlusion culling Hi-Z e distanze estreme.

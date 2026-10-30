@@ -9,8 +9,10 @@
 - **Task eseguiti:**
   - `T0.1`: Audit completo dei sottosistemi di Horizon con percorsi reali verificati.
   - `T0.2`: Redazione delle decisioni architetturali (ADR-001 .. ADR-005).
-  - `T0.3`: Redazione della policy sulle licenze e classificazione di Distant Horizons (LGPL-3.0) e Voxy (All Rights Reserved).
-  - `T0.4`: Validazione delle mod pilota, feature list mirata e definizione baseline di metriche.
+  - `T0.3`: Redazione della policy sulle licenze e classificazione delle mod pilota:
+    - Distant Horizons: LGPL-3.0 (🟢 Portabile).
+    - Voxy: All Rights Reserved (🔴 Bloccata per porting diretto). Sostituita con **Nvidium** (LGPL-3.0, 🟢 Portabile, dello stesso autore).
+  - `T0.4`: Validazione delle due mod pilota (Distant Horizons + Nvidium), feature list mirata e definizione baseline di metriche.
 - **Hash degli input:**
   - `Piano di implementazione porting mod Java in Horizon (Rust).md`: `SHA256: 941D6B6A123491CA59AA0FD60BC7928A1DC47B781F43173A9F5EDA13D2B8BAD9`
   - Base commit Horizon: `4f3457a`
@@ -23,4 +25,4 @@
   - `docs/porting/API_GAPS.md`
   - `docs/porting/OPEN_QUESTIONS.md`
   - `docs/porting/PORTING_LOG.md`
-- **Esito:** Tutti i criteri di accettazione della Fase 0 sono soddisfatti e verificati. Nessun codice di porting scritto in questa fase. Attività fermata in attesa di approvazione umana.
+- **Esito:** Tutti i criteri di accettazione della Fase 0 sono soddisfatti e verificati con Opzione A approvata dall'utente. Nessun codice di porting scritto in questa fase.
