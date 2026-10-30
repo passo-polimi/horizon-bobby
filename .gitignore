@@ -33,4 +33,5 @@
 /debug/
 
 # Release-only compiled original exporter bundle.
+/work/
 /exporters/

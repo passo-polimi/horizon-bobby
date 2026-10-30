@@ -1,0 +1,99 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "HorizonModManifest",
+  "description": "Schema di validazione per mod-manifest.json (Horizon Mod Porting T1.3)",
+  "type": "object",
+  "required": [
+    "mod_id",
+    "name",
+    "version",
+    "license",
+    "entrypoints",
+    "mixins",
+    "fabric_callbacks",
+    "minecraft_references",
+    "network_channels",
+    "shaders",
+    "assets",
+    "threading_and_reflection"
+  ],
+  "properties": {
+    "mod_id": { "type": "string" },
+    "name": { "type": "string" },
+    "version": { "type": "string" },
+    "license": { "type": "string" },
+    "dependencies": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "entrypoints": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "string" }
+      }
+    },
+    "mixins": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["class", "target", "type"],
+        "properties": {
+          "class": { "type": "string" },
+          "target": { "type": "string" },
+          "type": {
+            "type": "string",
+            "enum": [
+              "Inject_HEAD",
+              "Inject_RETURN",
+              "Inject_OTHER",
+              "Redirect",
+              "ModifyVariable",
+              "Overwrite",
+              "Accessor",
+              "Invoker"
+            ]
+          },
+          "method": { "type": "string" },
+          "captures_locals": { "type": "boolean" }
+        }
+      }
+    },
+    "fabric_callbacks": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "minecraft_references": {
+      "type": "object",
+      "additionalProperties": { "type": "integer" }
+    },
+    "network_channels": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "shaders": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "assets": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "threading_and_reflection": {
+      "type": "object",
+      "properties": {
+        "uses_threads": { "type": "boolean" },
+        "uses_reflection": { "type": "boolean" },
+        "thread_references": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "reflection_references": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "required": ["uses_threads", "uses_reflection"]
+    }
+  }
+}
