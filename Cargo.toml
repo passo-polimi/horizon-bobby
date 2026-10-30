@@ -43,6 +43,9 @@ members = [
     "mods/official/zoom",
     "xtask",
     "mods/official/recipes",
+    "crates/horizon-mod-api",
+    "crates/mods/distant-horizons",
+    "crates/mods/nvidium",
 ]
 resolver = "2"
 

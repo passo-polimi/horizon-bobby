@@ -8,8 +8,8 @@
 ## GAP-001: Registrazione Dinamica di RenderPass e Pipeline wgpu Custom
 - **Sottosistema:** Rendering (`crates/horizon-client-render/src/gfx.rs`)
 - **Descrizione:** In Horizon `Renderer::render` esegue una sequenza rigida e monolitica di RenderPass wgpu. Non esiste un'interfaccia a plugin (tipo Fabric Rendering API / Iris) che permetta a una mod di iniettare un pass prima o dopo il rendering del mondo o della skybox, né di associare un BindGroup dedicato.
-- **Mod interessate:** Distant Horizons, Voxy.
-- **Risoluzione temporanea / proposta:** Esporre in `horizon-client-render` un hook `RenderPassCallback` o un trait per consentire l'esecuzione di pass aggiuntivi.
+- **Mod interessate:** Distant Horizons, Nvidium.
+- **Risoluzione temporanea / proposta:** `horizon-mod-api` ha definito i trait `LODRenderHook` e `GPUCullingHook` con relativo `RenderHookRegistry`. In Fase 4 andrà aggiunto un punto di invocazione esplicito in `crates/horizon-client-render/src/gfx.rs`.
 
 ---
 

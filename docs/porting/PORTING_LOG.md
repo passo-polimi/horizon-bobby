@@ -54,3 +54,43 @@
   - `docs/porting/PORTING_LOG.md`
   - `.gitignore`
 - **Esito:** Fase 1 completata con successo, criteri di accettazione verificati. Attività fermata in attesa di approvazione umana prima della Fase 2.
+
+---
+
+## [2026-10-30] Fase 2 — horizon-mod-api e Skeleton Mod
+- **Modello:** Antigravity Lead Agent (Google DeepMind)
+- **Task eseguiti:**
+  - `T2.1`: Implementazione tipi geometrici e primitivi (`BlockPos`, `ChunkPos`, `Vec3`, `Direction`, `Identifier`, `TextComponent`) con parità bit-a-bit su `as_long` / `from_long` e aritmetica rispetto a Minecraft Java.
+  - `T2.2`: Implementazione `EventBus` thread-safe (`RwLock` con snapshot senza lock mantenuti durante le invocazioni dei listener) ordinato per priorità decrescente, e catalogo eventi standard (`ModInitEvent`, `ClientTickEvent`, `RenderTickEvent`, `WorldLoadEvent`, `ChunkLoadEvent`, ecc.).
+  - `T2.3`: Wrapper `ModConfig<T>` generico basato su `serde` per caricamento, fallback di default e salvataggio thread-safe su `<config_dir>/<mod_id>.json`.
+  - `T2.4`: Sistema di networking custom `NetworkRegistry` per instradamento pacchetti di plugin messages e helper `write_varint` / `read_varint` testati con golden bytes del protocollo Minecraft.
+  - `T2.5`: Livello HUD / 2D drawing `DrawContext` per incapsulare il batching `HudBatch` e font atlas di `horizon-client-render`.
+  - `T2.6`: Skeleton completi per i due crate mod pilota:
+    - `crates/mods/distant-horizons`: feature DH-1..DH-5 con stub espliciti `todo!("PORT: ...")` e hook `LODRenderHook`.
+    - `crates/mods/nvidium`: feature NV-1..NV-5 con stub espliciti `todo!("PORT: ...")` e hook `GPUCullingHook`.
+    - Ogni funzione contiene il commento di tracciamento `// PORT: Classe#metodo`.
+  - `T2.7`: Tabella di compatibilità e mappatura simboli Mojmap Java → Horizon Mod API in `docs/porting/API.md`.
+- **File creati / modificati:**
+  - `crates/horizon-mod-api/Cargo.toml`
+  - `crates/horizon-mod-api/src/lib.rs`
+  - `crates/horizon-mod-api/src/types.rs`
+  - `crates/horizon-mod-api/src/event.rs`
+  - `crates/horizon-mod-api/src/config.rs`
+  - `crates/horizon-mod-api/src/net.rs`
+  - `crates/horizon-mod-api/src/draw.rs`
+  - `crates/horizon-mod-api/src/render_hook.rs`
+  - `crates/horizon-mod-api/tests/api_tests.rs`
+  - `crates/mods/distant-horizons/Cargo.toml`
+  - `crates/mods/distant-horizons/src/lib.rs`
+  - `crates/mods/nvidium/Cargo.toml`
+  - `crates/mods/nvidium/src/lib.rs`
+  - `docs/porting/API.md`
+  - `docs/porting/API_GAPS.md`
+  - `docs/porting/PORTING_LOG.md`
+  - `Cargo.toml` (aggiunti workspace members)
+  - `Cargo.lock`
+- **Esito verifiche:**
+  - `cargo check -p horizon-mod-api -p distant-horizons -p nvidium`: terminato con codice 0.
+  - `cargo test -p horizon-mod-api --test api_tests`: 7 test passati su 7 (`test result: ok. 7 passed; 0 failed`).
+  - `cargo clippy -p horizon-mod-api -p distant-horizons -p nvidium`: terminato con codice 0 (0 errori, 0 warning).
+  - Criteri di accettazione di Fase 2 pienamente soddisfatti. Attività fermata in attesa di approvazione umana prima della Fase 3.

@@ -847,6 +847,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "distant-horizons"
+version = "0.1.0"
+dependencies = [
+ "horizon-mod-api",
+ "log",
+]
+
+[[package]]
 name = "dlib"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1542,6 +1550,21 @@ dependencies = [
  "horizon-world",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "horizon-mod-api"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "glam",
+ "horizon-client-render",
+ "horizon-core",
+ "horizon-protocol",
+ "log",
+ "serde",
+ "serde_json",
+ "wgpu",
 ]
 
 [[package]]
@@ -2391,6 +2414,14 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.119",
+]
+
+[[package]]
+name = "nvidium"
+version = "0.1.0"
+dependencies = [
+ "horizon-mod-api",
+ "log",
 ]
 
 [[package]]
