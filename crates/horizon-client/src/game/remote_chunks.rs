@@ -250,6 +250,7 @@ impl Game<'_> {
         };
         let (x, z) = (p.x, p.z);
         self.streaming.insert_remote(&mut self.world, chunk);
+        self.lod_observe.insert((x, z));
         self.world
             .block_entities
             .retain(|k, _| (k.0 >> 4, k.2 >> 4) != (x, z));

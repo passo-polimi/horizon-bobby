@@ -395,8 +395,41 @@ impl Game<'_> {
             }
         };
         let player_type = super::perspective::player_type(&root);
+        let save_path = {
+            let prova1_appdata = std::env::var_os("APPDATA")
+                .map(std::path::PathBuf::from)
+                .map(|p| p.join("horizon").join("saves").join("prova1").join("dimensions").join("minecraft").join("overworld"));
+            let rust_world_appdata = std::env::var_os("APPDATA")
+                .map(std::path::PathBuf::from)
+                .map(|p| p.join("horizon").join("saves").join("rust_world").join("dimensions").join("minecraft").join("overworld"));
+            let local_prova1 = std::env::current_dir()
+                .unwrap_or_default()
+                .join("saves")
+                .join("prova1")
+                .join("dimensions")
+                .join("minecraft")
+                .join("overworld");
+
+            if let Some(p) = prova1_appdata.filter(|p| p.exists()) {
+                p
+            } else if let Some(p) = rust_world_appdata.filter(|p| p.exists()) {
+                p
+            } else if local_prova1.exists() {
+                local_prova1
+            } else {
+                std::env::temp_dir().join("horizon-remote-unused")
+            }
+        };
+        let save = Arc::new(SaveDir::new(save_path));
+        self.save = save.clone();
+        let generator = Arc::new(horizon_client::save::Persistent {
+            inner: Arc::new(NoTerrain),
+            save: self.save.clone(),
+            registry: self.pack.assets.clone(),
+            biomes: self.res.biomes().clone(),
+        });
         let mut streaming = Streaming::new(
-            Arc::new(NoTerrain),
+            generator,
             self.pack.context.clone(),
             self.res.threads(),
         );
@@ -404,9 +437,6 @@ impl Game<'_> {
         streaming.radius = self.settings.render_distance;
         self.streaming = streaming;
         self.world = World::new(self.res.facts().air, 0);
-        self.save = Arc::new(SaveDir::new(
-            std::env::temp_dir().join("horizon-remote-unused"),
-        ));
         self.inventory = vec![None; 36];
         self.armor = [None, None, None, None];
         self.craft_grid = vec![None; 9];
@@ -1107,8 +1137,14 @@ impl Game<'_> {
         if !same {
             // A new ClientLevel: Minecraft.setLevel stops every sound.
             self.stop_sounds_for_new_level();
+            let generator = Arc::new(horizon_client::save::Persistent {
+                inner: Arc::new(NoTerrain),
+                save: self.save.clone(),
+                registry: self.pack.assets.clone(),
+                biomes: self.res.biomes().clone(),
+            });
             let mut streaming = Streaming::new(
-                Arc::new(NoTerrain),
+                generator,
                 self.pack.context.clone(),
                 self.res.threads(),
             );
@@ -1910,12 +1946,15 @@ impl Game<'_> {
             C::LightUpdate(p) => self.remote_light_update(&p),
             C::ForgetLevelChunk(p) => {
                 let [x, z] = p.pos;
-                self.streaming.forget(&mut self.world, x, z);
+                let chunk = self.streaming.forget(&mut self.world, x, z);
                 self.world
                     .block_entities
                     .retain(|k, _| (k.0 >> 4, k.2 >> 4) != (x, z));
                 if let Some(renderer) = self.renderer.as_mut() {
                     renderer.remove_columns([(x, z)]);
+                }
+                if let (Some(lod), Some(chunk)) = (&mut self.lod, chunk) {
+                    lod.observe(chunk, self.res.facts());
                 }
             }
             C::ChunkBatchFinished(_) => {
