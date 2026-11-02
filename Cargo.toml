@@ -47,6 +47,7 @@ members = [
     "crates/mods/distant-horizons",
     "crates/mods/nvidium",
     "crates/horizon-mod-harness",
+    "crates/horizon-dh",
 ]
 resolver = "2"
 

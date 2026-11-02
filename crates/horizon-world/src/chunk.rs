@@ -187,11 +187,16 @@ impl BlockState {
                 properties: BTreeMap::new(),
             });
         }
-        let Some(Tag::String(name)) = tag.get("id") else {
-            return Err(invalid("block state is missing id"));
+        let name_tag = tag
+            .get("Name")
+            .or_else(|| tag.get("name"))
+            .or_else(|| tag.get("id"));
+        let Some(Tag::String(name)) = name_tag else {
+            return Err(invalid("block state is missing id/Name"));
         };
         let mut properties = BTreeMap::new();
-        if let Some(tag) = tag.get("properties") {
+        let props_tag = tag.get("Properties").or_else(|| tag.get("properties"));
+        if let Some(tag) = props_tag {
             let Tag::Compound(map) = tag else {
                 return Err(invalid("block properties are not a compound"));
             };
