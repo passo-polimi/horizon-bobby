@@ -2031,7 +2031,7 @@ impl SaveDir {
     /// `LOD_REGION_TTL`. Far terrain asks for every column of the view: it
     /// opened the region file each time, also where there is none, which
     /// held the far view back for minutes.
-    fn lod_saved(&self, x: i32, z: i32) -> bool {
+    pub fn lod_saved(&self, x: i32, z: i32) -> bool {
         let key = (x >> 5, z >> 5);
         let mut regions = self.lod_regions.lock().unwrap();
         let fresh = regions
@@ -3633,8 +3633,8 @@ pub struct Persistent<G> {
 type LodSurfaces = Arc<[crate::lod::Column; 256]>;
 /// The coarsest far tile spacing whose columns read saved chunks: 16 blocks
 /// a column, and 4 with Reduced far detail (`LodSampler::set_approximate`).
-const SAVED_LOD_STRIDE: i32 = 16;
-const SAVED_LOD_STRIDE_REDUCED: i32 = 4;
+const _SAVED_LOD_STRIDE: i32 = 16;
+const _SAVED_LOD_STRIDE_REDUCED: i32 = 4;
 struct SavedLodSampler<G: ChunkGenerator> {
     generator: Arc<Persistent<G>>,
     inner: Box<dyn crate::streaming::LodSampler>,
@@ -3700,31 +3700,15 @@ impl<G: ChunkGenerator> crate::streaming::LodSampler for SavedLodSampler<G> {
     }
     fn grid(&mut self, x: i32, z: i32, stride: i32, side: usize) -> Vec<crate::lod::Column> {
         let mut columns = self.inner.grid(x, z, stride, side);
-        // Saved chunks show in tiles up to 16 blocks a column. With Reduced far
-        // detail only up to 4 (within about a kilometre): coarser tiles keep
-        // the generator's terrain, which saved chunks were made from, since
-        // decoding up to 256 saved chunks for each of them held the whole far
-        // view back for minutes in large saves. Edits that far away show once
-        // their tiles refine on approach.
-        let limit = if self.approximate {
-            SAVED_LOD_STRIDE_REDUCED
-        } else {
-            SAVED_LOD_STRIDE
-        };
-        if stride <= limit {
-            for (index, column) in columns.iter_mut().enumerate() {
-                let (wx, wz) = (
-                    x + (index % side) as i32 * stride,
-                    z + (index / side) as i32 * stride,
-                );
-                if let Some(saved) = self.saved_columns((wx >> 4, wz >> 4)) {
-                    *column = crate::lod::Column::reduced(
-                        &saved,
-                        (wx & 15) as usize,
-                        (wz & 15) as usize,
-                        stride as usize,
-                    );
-                }
+        for (index, column) in columns.iter_mut().enumerate() {
+            let (wx, wz) = (
+                x + (index % side) as i32 * stride,
+                z + (index / side) as i32 * stride,
+            );
+            if let Some(saved) = self.saved_columns((wx >> 4, wz >> 4)) {
+                let w = (stride as usize).clamp(1, 16);
+                *column =
+                    crate::lod::Column::reduced(&saved, (wx & 15) as usize, (wz & 15) as usize, w);
             }
         }
         columns
@@ -3736,15 +3720,9 @@ impl<G: ChunkGenerator> crate::streaming::LodSampler for SavedLodSampler<G> {
         self.reduced_column(x, z, 1)
     }
     fn reduced_column(&mut self, x: i32, z: i32, width: i32) -> crate::lod::Column {
-        if width <= 16
-            && let Some(columns) = self.saved_columns((x >> 4, z >> 4))
-        {
-            return crate::lod::Column::reduced(
-                &columns,
-                (x & 15) as usize,
-                (z & 15) as usize,
-                width as usize,
-            );
+        if let Some(columns) = self.saved_columns((x >> 4, z >> 4)) {
+            let w = (width as usize).clamp(1, 16);
+            return crate::lod::Column::reduced(&columns, (x & 15) as usize, (z & 15) as usize, w);
         }
         self.inner.reduced_column(x, z, width)
     }
@@ -3907,7 +3885,10 @@ fn decode_lod_surfaces(
                         (
                             state,
                             fluid,
-                            fluid || properties.blocks_motion_in_heightmap() || chorus || architectural,
+                            fluid
+                                || properties.blocks_motion_in_heightmap()
+                                || chorus
+                                || architectural,
                         )
                     }))
                 })
@@ -3996,7 +3977,7 @@ fn decode_lod_surfaces(
 impl SaveDir {
     /// `lod_surfaces`, decoded once for all far sampling threads: each saved
     /// chunk lies under far tiles of several levels, sampled on any thread.
-    fn lod_surfaces_shared(
+    pub fn lod_surfaces_shared(
         &self,
         x: i32,
         z: i32,

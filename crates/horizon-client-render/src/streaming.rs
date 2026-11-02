@@ -182,6 +182,7 @@ pub enum Done {
     Lit(i32, i32, Vec<crate::chunk::Light>, u64),
     Meshed(i32, i32, i32, SectionMesh, u64),
     Saved(Vec<((i32, i32), Proto)>),
+    Missing(i32, i32),
 }
 struct Queued {
     priority: i64,
@@ -220,6 +221,7 @@ struct Shared {
     /// packs reload; each mesh job takes the current one.
     context: RwLock<Arc<WorkerContext>>,
     done: Mailbox,
+    remote: AtomicBool,
 }
 /// Finished jobs, from the workers to the game thread, in the order they
 /// finished. Not an `mpsc` channel: its receiver waits for a sender it finds
@@ -271,7 +273,7 @@ pub struct Streaming {
     scan_age: u8,
     /// The centre and radius the sweep was last reset for.
     scan_area: ((i32, i32), i32),
-    generating: FxHashSet<(i32, i32)>,
+    pub generating: FxHashSet<(i32, i32)>,
     generation_scan: GenerationScan,
     /// Proto chunks: `None` while checked out to a decoration or save job.
     protos: FxHashMap<(i32, i32), Option<Proto>>,
@@ -338,6 +340,9 @@ pub struct Streaming {
     /// Chunks come from a server (`insert_remote`/`forget`): nothing is
     /// generated and columns are only unloaded when the server says so.
     pub remote: bool,
+    pub missing: FxHashSet<(i32, i32)>,
+    pub server_chunks: FxHashSet<(i32, i32)>,
+    pub cached_chunks: FxHashSet<(i32, i32)>,
     /// More areas to keep loaded (centre chunk, radius), e.g. around the
     /// players of a server. Each is a square, like vanilla's ticket levels:
     /// chunks finish out to `radius + 1` (Chebyshev) and generation reaches
@@ -393,8 +398,8 @@ struct GenerationInputs<'a> {
     generating: &'a FxHashSet<(i32, i32)>,
     protos: &'a FxHashMap<(i32, i32), Option<Proto>>,
     finishing: &'a FxHashSet<(i32, i32)>,
+    missing: &'a FxHashSet<(i32, i32)>,
     decorates: bool,
-    remote: bool,
     loading: bool,
 }
 impl GenerationScan {
@@ -407,10 +412,7 @@ impl GenerationScan {
     ) -> Option<Vec<(i64, i32, i32)>> {
         // Generation (load or proto), closest first, bounded in flight.
         let (margin, reach) = Ranges::margins(input.decorates);
-        if input.remote
-            || input.generating.len() >= capacity
-            || self.unchanged(&input.ranges, input.world)
-        {
+        if input.generating.len() >= capacity || self.unchanged(&input.ranges, input.world) {
             return None;
         }
         {
@@ -443,6 +445,7 @@ impl GenerationScan {
                         || input.generating.contains(&(x, z))
                         || input.protos.contains_key(&(x, z))
                         || input.finishing.contains(&(x, z))
+                        || input.missing.contains(&(x, z))
                     {
                         continue;
                     }
@@ -465,6 +468,7 @@ impl GenerationScan {
                             || input.generating.contains(&(x, z))
                             || input.protos.contains_key(&(x, z))
                             || input.finishing.contains(&(x, z))
+                            || input.missing.contains(&(x, z))
                         {
                             continue;
                         }
@@ -513,6 +517,7 @@ impl Streaming {
             stop: AtomicBool::new(false),
             context: RwLock::new(context.clone()),
             done: Mailbox::default(),
+            remote: AtomicBool::new(false),
         });
         let light_tables = context.light.clone();
         let saves: Arc<dyn Saves> = generator.clone();
@@ -551,9 +556,13 @@ impl Streaming {
                                         Done::Generated(chunk)
                                     }
                                     None => {
-                                        let proto = generator.proto(&mut worker, x, z);
-                                        let decorated = generator.is_decorated(&proto);
-                                        Done::Proto(x, z, proto, decorated)
+                                        if shared.remote.load(Ordering::Relaxed) {
+                                            Done::Missing(x, z)
+                                        } else {
+                                            let proto = generator.proto(&mut worker, x, z);
+                                            let decorated = generator.is_decorated(&proto);
+                                            Done::Proto(x, z, proto, decorated)
+                                        }
                                     }
                                 },
                                 Job::Decorate(x, z, mut region) => {
@@ -658,6 +667,9 @@ impl Streaming {
             generated_total: 0,
             meshed_total: 0,
             remote: false,
+            missing: Default::default(),
+            server_chunks: Default::default(),
+            cached_chunks: Default::default(),
             extra: Vec::new(),
             cover: None,
             mesh: true,
@@ -666,6 +678,13 @@ impl Streaming {
         }
     }
     /// Shares generation resources, but gives distant work its own worker state.
+    pub fn set_remote(&mut self, remote: bool) {
+        self.remote = remote;
+        self.shared.remote.store(remote, Ordering::Relaxed);
+    }
+    pub fn waiting_len(&self) -> usize {
+        self.waiting.len()
+    }
     pub fn lod_source(&self) -> Arc<dyn LodSource> {
         self.saves.clone()
     }
@@ -688,6 +707,9 @@ impl Streaming {
     /// relit, and it and its neighbours remesh (`enableChunkLight`).
     pub fn insert_remote(&mut self, world: &mut World, chunk: Chunk) {
         let key = (chunk.x, chunk.z);
+        self.server_chunks.insert(key);
+        self.cached_chunks.remove(&key);
+        self.missing.remove(&key);
         self.lighting.remove(&key);
         self.light_snapshots.remove(&key);
         world.chunks.insert(key, Arc::new(chunk));
@@ -731,6 +753,9 @@ impl Streaming {
     }
     /// A column the server unloaded (ClientboundForgetLevelChunkPacket).
     pub fn forget(&mut self, world: &mut World, x: i32, z: i32) -> Option<Arc<Chunk>> {
+        self.server_chunks.remove(&(x, z));
+        self.cached_chunks.remove(&(x, z));
+        self.missing.remove(&(x, z));
         self.lit.remove(&(x, z));
         self.meshed.remove(&(x, z));
         self.lighting.remove(&(x, z));
@@ -814,12 +839,27 @@ impl Streaming {
             self.submit(None, 0, Job::Save(protos));
         }
     }
-    fn receive_generated(&mut self, mut chunk: Chunk, world: &mut World) {
+    pub fn handle_missing(&mut self, x: i32, z: i32) {
+        self.generation_scan.exhausted = false;
+        self.generating.remove(&(x, z));
+        self.finishing.remove(&(x, z));
+        self.missing.insert((x, z));
+    }
+    pub fn receive_generated(&mut self, mut chunk: Chunk, world: &mut World) {
         self.generation_scan.exhausted = false;
         let key = (chunk.x, chunk.z);
         self.generating.remove(&key);
         self.finishing.remove(&key);
         self.decorated.insert(key);
+
+        // T3: In remote mode, discard disk copy if server chunk already present
+        if self.remote && (self.server_chunks.contains(&key) || world.chunks.contains_key(&key)) {
+            return;
+        }
+        if self.remote {
+            self.cached_chunks.insert(key);
+        }
+
         // A column that finished after the player moved away is dropped
         // whole: its block entities and saved entities too, or they would
         // stay in the world (and the entities spawn again, duplicated, when
@@ -827,14 +867,14 @@ impl Streaming {
         // neighbours were decorated around it, so generating it again would
         // not give it back.
         if !self.ranges().chunk_kept(key.0, key.1, self.decorates) {
-            if chunk.fresh {
+            if !self.remote && chunk.fresh {
                 self.saves.save_finished(chunk);
             }
             return;
         }
         // Generated columns are saved like edited ones, as vanilla saves
         // every chunk it generates.
-        if chunk.fresh {
+        if !self.remote && chunk.fresh {
             world.modified.insert(key);
         }
         world
@@ -995,6 +1035,9 @@ impl Streaming {
         let mut stale = Vec::new();
         for done in deferred.into_iter().chain(received) {
             match done {
+                Done::Missing(x, z) => {
+                    self.handle_missing(x, z);
+                }
                 Done::Proto(x, z, proto, decorated) => {
                     self.generation_scan.exhausted = false;
                     self.generating.remove(&(x, z));
@@ -1030,7 +1073,7 @@ impl Streaming {
                         }
                         // Saved unlit (at the edge of what was loaded), or its light
                         // changed: saved again.
-                        if (first && !chunk.light_loaded) || !changed.is_empty() {
+                        if !self.remote && ((first && !chunk.light_loaded) || !changed.is_empty()) {
                             world.modified.insert((x, z));
                         }
                         chunk.lit = true;
@@ -1395,8 +1438,8 @@ impl Streaming {
             generating: &self.generating,
             protos: &self.protos,
             finishing: &self.finishing,
+            missing: &self.missing,
             decorates: self.decorates,
-            remote: self.remote,
             loading: self.loading,
         };
         if let Some(wanted) = self.generation_scan.candidates(input, workers * 3) {
@@ -2075,9 +2118,10 @@ mod tests {
         radius: i32,
         extra: Vec<((i32, i32), i32)>,
         forced: HashSet<(i32, i32)>,
-        generating: FxHashSet<(i32, i32)>,
+        pub generating: FxHashSet<(i32, i32)>,
         protos: FxHashMap<(i32, i32), Option<Proto>>,
         finishing: FxHashSet<(i32, i32)>,
+        missing: FxHashSet<(i32, i32)>,
         decorates: bool,
         remote: bool,
     }
@@ -2092,6 +2136,7 @@ mod tests {
                 generating: Default::default(),
                 protos: Default::default(),
                 finishing: Default::default(),
+                missing: Default::default(),
                 decorates,
                 remote: false,
             }
@@ -2110,8 +2155,8 @@ mod tests {
                 generating: &self.generating,
                 protos: &self.protos,
                 finishing: &self.finishing,
+                missing: &self.missing,
                 decorates: self.decorates,
-                remote: self.remote,
                 loading: false,
             }
         }
@@ -2146,7 +2191,7 @@ mod tests {
     // Original scheduling scan, without snapshot bookkeeping, for differential
     // correctness and timing. Keep this independent of the production gate.
     fn baseline_candidates(input: GenerationInputs<'_>, capacity: usize) -> Vec<(i64, i32, i32)> {
-        if input.remote || input.generating.len() >= capacity {
+        if input.generating.len() >= capacity {
             return Vec::new();
         }
         let margin: i32 = if input.decorates { 3 } else { 1 };
@@ -2160,6 +2205,7 @@ mod tests {
                 && !input.generating.contains(&(x, z))
                 && !input.protos.contains_key(&(x, z))
                 && !input.finishing.contains(&(x, z))
+                && !input.missing.contains(&(x, z))
         };
         for (center, radius) in areas {
             let r = radius + margin.max(reach + 1);
@@ -2327,6 +2373,21 @@ mod tests {
                 assert!(f.assert_same(&mut gate, capacity));
             }
         }
+    }
+
+    #[test]
+    fn candidates_skips_missing_columns() {
+        let mut f = GenerationFixture::new(2, false);
+        let mut gate = GenerationScan::default();
+        let c1 = gate.candidates(f.input(), 10).unwrap();
+        assert!(!c1.is_empty());
+        let missing_key = (c1[0].1, c1[0].2);
+
+        // Mark this key as missing
+        f.missing.insert(missing_key);
+        let mut gate2 = GenerationScan::default();
+        let c2 = gate2.candidates(f.input(), 10).unwrap();
+        assert!(!c2.iter().any(|&(_, x, z)| (x, z) == missing_key));
     }
 
     #[test]

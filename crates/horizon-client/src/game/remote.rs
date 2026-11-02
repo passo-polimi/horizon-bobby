@@ -144,6 +144,7 @@ pub(super) struct Remote {
     abilities: Option<play::PlayerAbilities>,
     loaded_sent: bool,
     pub(super) warmup_until: Option<Instant>,
+    pub(super) last_diag_log: Instant,
     /// The ClientInformation last sent (`Options.broadcastOptions` sends it
     /// again when a view distance, Chat, skin or Main Hand option changes).
     sent_info: horizon_protocol::packets::configuration::ClientInformation,
@@ -397,12 +398,50 @@ impl Game<'_> {
         };
         let player_type = super::perspective::player_type(&root);
         let save_path = {
+            let modded_appdata = std::env::var_os("APPDATA")
+                .map(std::path::PathBuf::from)
+                .map(|p| {
+                    p.join("horizon")
+                        .join("instances")
+                        .join("modded")
+                        .join("saves")
+                        .join("modded")
+                        .join("dimensions")
+                        .join("minecraft")
+                        .join("overworld")
+                });
+            let modded_prova1 = std::env::var_os("APPDATA")
+                .map(std::path::PathBuf::from)
+                .map(|p| {
+                    p.join("horizon")
+                        .join("instances")
+                        .join("modded")
+                        .join("saves")
+                        .join("prova1")
+                        .join("dimensions")
+                        .join("minecraft")
+                        .join("overworld")
+                });
             let prova1_appdata = std::env::var_os("APPDATA")
                 .map(std::path::PathBuf::from)
-                .map(|p| p.join("horizon").join("saves").join("prova1").join("dimensions").join("minecraft").join("overworld"));
+                .map(|p| {
+                    p.join("horizon")
+                        .join("saves")
+                        .join("prova1")
+                        .join("dimensions")
+                        .join("minecraft")
+                        .join("overworld")
+                });
             let rust_world_appdata = std::env::var_os("APPDATA")
                 .map(std::path::PathBuf::from)
-                .map(|p| p.join("horizon").join("saves").join("rust_world").join("dimensions").join("minecraft").join("overworld"));
+                .map(|p| {
+                    p.join("horizon")
+                        .join("saves")
+                        .join("rust_world")
+                        .join("dimensions")
+                        .join("minecraft")
+                        .join("overworld")
+                });
             let local_prova1 = std::env::current_dir()
                 .unwrap_or_default()
                 .join("saves")
@@ -411,7 +450,11 @@ impl Game<'_> {
                 .join("minecraft")
                 .join("overworld");
 
-            if let Some(p) = prova1_appdata.filter(|p| p.exists()) {
+            if let Some(p) = modded_appdata.filter(|p| p.exists()) {
+                p
+            } else if let Some(p) = modded_prova1.filter(|p| p.exists()) {
+                p
+            } else if let Some(p) = prova1_appdata.filter(|p| p.exists()) {
                 p
             } else if let Some(p) = rust_world_appdata.filter(|p| p.exists()) {
                 p
@@ -421,6 +464,16 @@ impl Game<'_> {
                 std::env::temp_dir().join("horizon-remote-unused")
             }
         };
+        log::info!(
+            "[Bobby/LOD] Joined server '{}'. Using region save path: {:?} (exists: {})",
+            address,
+            save_path,
+            save_path.exists()
+        );
+        log::info!(
+            "[Bobby/Diag] Initial join: radius={}, remote=true",
+            self.settings.render_distance
+        );
         let save = Arc::new(SaveDir::new(save_path));
         self.save = save.clone();
         let generator = Arc::new(horizon_client::save::Persistent {
@@ -429,12 +482,9 @@ impl Game<'_> {
             registry: self.pack.assets.clone(),
             biomes: self.res.biomes().clone(),
         });
-        let mut streaming = Streaming::new(
-            generator,
-            self.pack.context.clone(),
-            self.res.threads(),
-        );
-        streaming.remote = true;
+        let mut streaming =
+            Streaming::new(generator, self.pack.context.clone(), self.res.threads());
+        streaming.set_remote(true);
         streaming.radius = self.settings.render_distance;
         self.streaming = streaming;
         self.world = World::new(self.res.facts().air, 0);
@@ -514,6 +564,7 @@ impl Game<'_> {
             abilities: None,
             loaded_sent: false,
             warmup_until: None,
+            last_diag_log: Instant::now(),
             sent_info: self.settings.client_information(view),
             predictions: HashMap::new(),
             menu: None,
@@ -874,6 +925,18 @@ impl Game<'_> {
         let Some(r) = self.remote.as_mut() else {
             return Ok(());
         };
+        if r.last_diag_log.elapsed() >= Duration::from_secs(5) {
+            r.last_diag_log = Instant::now();
+            log::info!(
+                "[Bobby/Diag] radius: {}, net_chunks: {}, cached_chunks: {}, missing_cols: {}, waiting_sections: {}, world_chunks: {}",
+                self.streaming.radius,
+                self.streaming.server_chunks.len(),
+                self.streaming.cached_chunks.len(),
+                self.streaming.missing.len(),
+                self.streaming.waiting_len(),
+                self.world.chunks.len(),
+            );
+        }
         let mut events = std::mem::take(&mut r.backlog);
         // Chunk packets start decoding now; the frame that reaches one in
         // order inserts its column.
@@ -1145,12 +1208,9 @@ impl Game<'_> {
                 registry: self.pack.assets.clone(),
                 biomes: self.res.biomes().clone(),
             });
-            let mut streaming = Streaming::new(
-                generator,
-                self.pack.context.clone(),
-                self.res.threads(),
-            );
-            streaming.remote = true;
+            let mut streaming =
+                Streaming::new(generator, self.pack.context.clone(), self.res.threads());
+            streaming.set_remote(true);
             streaming.radius = self.streaming.radius;
             self.streaming = streaming;
             let (time, day, weather) = (
@@ -1207,7 +1267,8 @@ impl Game<'_> {
     /// two, plus three) chunks each way.
     pub(super) fn remote_chunk_in_range(&self, x: i32, z: i32) -> bool {
         self.remote.as_ref().is_none_or(|r| {
-            let range = r.view_distance.max(2) + 3;
+            let max_radius = self.settings.render_distance.max(r.view_distance).max(2);
+            let range = max_radius + 3;
             (x - r.chunk_center.0).abs() <= range && (z - r.chunk_center.1).abs() <= range
         })
     }
@@ -1895,8 +1956,7 @@ impl Game<'_> {
                     r.view_distance = p.chunk_radius;
                     r.show_death_screen = p.show_death_screen;
                 }
-                self.streaming.radius =
-                    self.settings.render_distance.min(p.chunk_radius + 1).max(2);
+                self.streaming.radius = self.settings.render_distance.max(2);
                 self.enter_remote_dimension(&p.spawn, false);
                 let info = self
                     .settings
@@ -1948,15 +2008,18 @@ impl Game<'_> {
             C::LightUpdate(p) => self.remote_light_update(&p),
             C::ForgetLevelChunk(p) => {
                 let [x, z] = p.pos;
-                let chunk = self.streaming.forget(&mut self.world, x, z);
-                self.world
-                    .block_entities
-                    .retain(|k, _| (k.0 >> 4, k.2 >> 4) != (x, z));
-                if let Some(renderer) = self.renderer.as_mut() {
-                    renderer.remove_columns([(x, z)]);
-                }
-                if let (Some(lod), Some(chunk)) = (&mut self.lod, chunk) {
-                    lod.observe(chunk, self.res.facts());
+                // Bobby retention: Only unload if truly outside the client's configured render distance!
+                if !self.remote_chunk_in_range(x, z) {
+                    let chunk = self.streaming.forget(&mut self.world, x, z);
+                    self.world
+                        .block_entities
+                        .retain(|k, _| (k.0 >> 4, k.2 >> 4) != (x, z));
+                    if let Some(renderer) = self.renderer.as_mut() {
+                        renderer.remove_columns([(x, z)]);
+                    }
+                    if let (Some(lod), Some(chunk)) = (&mut self.lod, chunk) {
+                        lod.observe(chunk, self.res.facts());
+                    }
                 }
             }
             C::ChunkBatchFinished(_) => {
@@ -3116,7 +3179,7 @@ impl Game<'_> {
             },
             C::SetPlayerTeam(p) => self.remote_team(p),
             C::SetChunkCacheRadius(p) => {
-                self.streaming.radius = self.settings.render_distance.min(p.distance + 1).max(2);
+                self.streaming.radius = self.settings.render_distance.max(2);
                 if let Some(r) = self.remote.as_mut() {
                     r.view_distance = p.distance;
                 }
