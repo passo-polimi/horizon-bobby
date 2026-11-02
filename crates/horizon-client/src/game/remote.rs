@@ -145,6 +145,10 @@ pub(super) struct Remote {
     loaded_sent: bool,
     pub(super) warmup_until: Option<Instant>,
     pub(super) last_diag_log: Instant,
+    pub(super) server_address: String,
+    pub(super) pending_save: horizon_client::fast_hash::FxHashSet<(i32, i32)>,
+    pub(super) last_save_flush: Instant,
+    pub(super) auto_saved_chunks_total: usize,
     /// The ClientInformation last sent (`Options.broadcastOptions` sends it
     /// again when a view distance, Chat, skin or Main Hand option changes).
     sent_info: horizon_protocol::packets::configuration::ClientInformation,
@@ -345,6 +349,87 @@ impl Game<'_> {
     ) -> Result<()> {
         self.join_server("local", name, Some(pipe), None)
     }
+    /// Computes the dimension-specific Anvil region cache folder for a given server address.
+    pub(super) fn server_dimension_save_path(address: &str, dim: &Dim) -> std::path::PathBuf {
+        let host = address.split(':').next().unwrap_or(address).trim();
+        let sanitized_host: String = host
+            .chars()
+            .map(|c| {
+                if c.is_alphanumeric() || c == '.' || c == '_' || c == '-' {
+                    c
+                } else {
+                    '_'
+                }
+            })
+            .collect();
+
+        let dim_sub = match dim {
+            Dim::Overworld => std::path::Path::new("dimensions")
+                .join("minecraft")
+                .join("overworld"),
+            Dim::Nether => std::path::Path::new("dimensions")
+                .join("minecraft")
+                .join("the_nether"),
+            Dim::End => std::path::Path::new("dimensions")
+                .join("minecraft")
+                .join("the_end"),
+        };
+
+        let appdata = std::env::var_os("APPDATA").map(std::path::PathBuf::from);
+
+        if let Some(base) = appdata.as_ref() {
+            let server_path = base
+                .join("horizon")
+                .join("instances")
+                .join("modded")
+                .join("saves")
+                .join("servers")
+                .join(&sanitized_host)
+                .join(&dim_sub);
+            if server_path.join("region").exists() || server_path.exists() {
+                return server_path;
+            }
+
+            let direct_path = base
+                .join("horizon")
+                .join("instances")
+                .join("modded")
+                .join("saves")
+                .join(&sanitized_host)
+                .join(&dim_sub);
+            if direct_path.join("region").exists() || direct_path.exists() {
+                return direct_path;
+            }
+
+            let modded_path = base
+                .join("horizon")
+                .join("instances")
+                .join("modded")
+                .join("saves")
+                .join("modded")
+                .join(&dim_sub);
+            if modded_path.join("region").exists() || modded_path.exists() {
+                return modded_path;
+            }
+
+            let fallback_server_path = base
+                .join("horizon")
+                .join("instances")
+                .join("modded")
+                .join("saves")
+                .join("servers")
+                .join(&sanitized_host)
+                .join(&dim_sub);
+            let _ = std::fs::create_dir_all(&fallback_server_path);
+            fallback_server_path
+        } else {
+            std::env::temp_dir()
+                .join("horizon-remote-cache")
+                .join(sanitized_host)
+                .join(dim_sub)
+        }
+    }
+
     fn join_server(
         &mut self,
         address: &str,
@@ -397,73 +482,7 @@ impl Game<'_> {
             }
         };
         let player_type = super::perspective::player_type(&root);
-        let save_path = {
-            let modded_appdata = std::env::var_os("APPDATA")
-                .map(std::path::PathBuf::from)
-                .map(|p| {
-                    p.join("horizon")
-                        .join("instances")
-                        .join("modded")
-                        .join("saves")
-                        .join("modded")
-                        .join("dimensions")
-                        .join("minecraft")
-                        .join("overworld")
-                });
-            let modded_prova1 = std::env::var_os("APPDATA")
-                .map(std::path::PathBuf::from)
-                .map(|p| {
-                    p.join("horizon")
-                        .join("instances")
-                        .join("modded")
-                        .join("saves")
-                        .join("prova1")
-                        .join("dimensions")
-                        .join("minecraft")
-                        .join("overworld")
-                });
-            let prova1_appdata = std::env::var_os("APPDATA")
-                .map(std::path::PathBuf::from)
-                .map(|p| {
-                    p.join("horizon")
-                        .join("saves")
-                        .join("prova1")
-                        .join("dimensions")
-                        .join("minecraft")
-                        .join("overworld")
-                });
-            let rust_world_appdata = std::env::var_os("APPDATA")
-                .map(std::path::PathBuf::from)
-                .map(|p| {
-                    p.join("horizon")
-                        .join("saves")
-                        .join("rust_world")
-                        .join("dimensions")
-                        .join("minecraft")
-                        .join("overworld")
-                });
-            let local_prova1 = std::env::current_dir()
-                .unwrap_or_default()
-                .join("saves")
-                .join("prova1")
-                .join("dimensions")
-                .join("minecraft")
-                .join("overworld");
-
-            if let Some(p) = modded_appdata.filter(|p| p.exists()) {
-                p
-            } else if let Some(p) = modded_prova1.filter(|p| p.exists()) {
-                p
-            } else if let Some(p) = prova1_appdata.filter(|p| p.exists()) {
-                p
-            } else if let Some(p) = rust_world_appdata.filter(|p| p.exists()) {
-                p
-            } else if local_prova1.exists() {
-                local_prova1
-            } else {
-                std::env::temp_dir().join("horizon-remote-unused")
-            }
-        };
+        let save_path = Self::server_dimension_save_path(address, &Dim::Overworld);
         log::info!(
             "[Bobby/LOD] Joined server '{}'. Using region save path: {:?} (exists: {})",
             address,
@@ -565,6 +584,10 @@ impl Game<'_> {
             loaded_sent: false,
             warmup_until: None,
             last_diag_log: Instant::now(),
+            server_address: address.to_owned(),
+            pending_save: horizon_client::fast_hash::FxHashSet::default(),
+            last_save_flush: Instant::now(),
+            auto_saved_chunks_total: 0,
             sent_info: self.settings.client_information(view),
             predictions: HashMap::new(),
             menu: None,
@@ -625,8 +648,35 @@ impl Game<'_> {
         Ok(())
     }
 
+    pub(super) fn flush_pending_remote_saves(&mut self) -> Result<()> {
+        let Some(r) = self.remote.as_mut() else {
+            return Ok(());
+        };
+        if r.pending_save.is_empty() {
+            return Ok(());
+        }
+        let keys: Vec<(i32, i32)> = r.pending_save.drain().collect();
+        let chunks: Vec<std::sync::Arc<Chunk>> = keys
+            .iter()
+            .filter_map(|k| self.world.chunks.get(k).cloned())
+            .collect();
+        if !chunks.is_empty() {
+            let count = chunks.len();
+            self.save
+                .save_later(&chunks, self.pack.assets.registry, self.res.biomes())?;
+            r.auto_saved_chunks_total += count;
+            log::info!(
+                "[Bobby/AutoSave] Flushed remaining {} chunks to disk",
+                count
+            );
+        }
+        Ok(())
+    }
+
     /// Disconnect and return to the multiplayer screen (DisconnectedScreen).
     pub(super) fn leave_server(&mut self, reason: Option<String>) -> Result<()> {
+        let _ = self.flush_pending_remote_saves();
+        let _ = self.save.flush();
         if reason.is_none() && self.integrated.as_ref().is_some_and(|s| !s.stopped()) {
             return self.begin_closing_save(false);
         }
@@ -925,16 +975,45 @@ impl Game<'_> {
         let Some(r) = self.remote.as_mut() else {
             return Ok(());
         };
+        if r.last_save_flush.elapsed() >= Duration::from_secs(3) {
+            r.last_save_flush = Instant::now();
+            if !r.pending_save.is_empty() {
+                let batch_keys: Vec<(i32, i32)> = r.pending_save.iter().take(32).copied().collect();
+                for k in &batch_keys {
+                    r.pending_save.remove(k);
+                }
+                let chunks: Vec<std::sync::Arc<Chunk>> = batch_keys
+                    .iter()
+                    .filter_map(|k| self.world.chunks.get(k).cloned())
+                    .collect();
+                if !chunks.is_empty() {
+                    let count = chunks.len();
+                    if let Err(e) =
+                        self.save
+                            .save_later(&chunks, self.pack.assets.registry, self.res.biomes())
+                    {
+                        log::warn!(
+                            "[Bobby/AutoSave] Failed to save batch of {} chunks: {e}",
+                            count
+                        );
+                    } else {
+                        r.auto_saved_chunks_total += count;
+                    }
+                }
+            }
+        }
         if r.last_diag_log.elapsed() >= Duration::from_secs(5) {
             r.last_diag_log = Instant::now();
             log::info!(
-                "[Bobby/Diag] radius: {}, net_chunks: {}, cached_chunks: {}, missing_cols: {}, waiting_sections: {}, world_chunks: {}",
+                "[Bobby/Diag] radius: {}, net_chunks: {}, cached_chunks: {}, missing_cols: {}, waiting_sections: {}, world_chunks: {}, auto_saved: {}, pending_saves: {}",
                 self.streaming.radius,
                 self.streaming.server_chunks.len(),
                 self.streaming.cached_chunks.len(),
                 self.streaming.missing.len(),
                 self.streaming.waiting_len(),
                 self.world.chunks.len(),
+                r.auto_saved_chunks_total,
+                r.pending_save.len(),
             );
         }
         let mut events = std::mem::take(&mut r.backlog);
@@ -1200,6 +1279,16 @@ impl Game<'_> {
             .as_ref()
             .map(|d| (d.dimension.clone(), d.pos));
         if !same {
+            let _ = self.flush_pending_remote_saves();
+            let _ = self.save.flush();
+            let host = self
+                .remote
+                .as_ref()
+                .map(|r| r.server_address.as_str())
+                .unwrap_or("default");
+            let save_path = Self::server_dimension_save_path(host, &self.dim);
+            let save = Arc::new(SaveDir::new(save_path));
+            self.save = save.clone();
             // A new ClientLevel: Minecraft.setLevel stops every sound.
             self.stop_sounds_for_new_level();
             let generator = Arc::new(horizon_client::save::Persistent {
@@ -1459,6 +1548,9 @@ impl Game<'_> {
             return;
         }
         self.set_block(pos, state);
+        if let Some(r) = self.remote.as_mut() {
+            r.pending_save.insert((pos[0] >> 4, pos[2] >> 4));
+        }
     }
     /// BlockStatePredictionHandler.endPredictionsUpTo (ClientboundBlockChangedAckPacket): the
     /// actions up to `sequence` are settled, so the blocks they predicted take the state the

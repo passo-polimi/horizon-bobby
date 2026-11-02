@@ -239,3 +239,50 @@ fn zero_writes_to_modified_or_saves_in_remote() {
     );
     assert!(streaming.cached_chunks.contains(&key));
 }
+
+/// (e) Verifica che l'auto-salvataggio asincrono scriva i chunk di rete nei file .mca della cache server.
+#[test]
+fn auto_save_flushes_pending_network_chunks_to_anvil_region_cache() {
+    let root = match resources() {
+        Some(r) => r,
+        None => return,
+    };
+    let assets = match Assets::load(&root) {
+        Ok(a) => a,
+        Err(_) => return,
+    };
+    let biomes = match Biomes::load(&root) {
+        Ok(b) => Arc::new(b),
+        Err(_) => return,
+    };
+
+    let temp_dir = std::env::temp_dir().join(format!(
+        "horizon-bobby-autosave-test-{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&temp_dir);
+    std::fs::create_dir_all(temp_dir.join("region")).unwrap();
+
+    let save = horizon_client::save::SaveDir::new(temp_dir.clone());
+    let chunk = Arc::new(Chunk::empty(5, 5));
+
+    // Save later in background
+    let queued = save.save_later(&[chunk], assets.registry, &biomes).unwrap();
+    assert_eq!(queued, 1);
+
+    // Flush to disk
+    save.flush().unwrap();
+
+    // Verify .mca exists for chunk (5, 5) -> region r.0.0.mca
+    let mca_path = temp_dir.join("region").join("r.0.0.mca");
+    assert!(
+        mca_path.exists(),
+        "Region file r.0.0.mca must be created by auto-save"
+    );
+    assert!(
+        std::fs::metadata(&mca_path).unwrap().len() > 0,
+        "Region file must not be empty"
+    );
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}
